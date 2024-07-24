@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyredis
+  namespace: redis-demo
+  labels:
+    app: pyredis
+    app.component: pyredis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pyredis
+  template:
+    metadata:
+      labels:
+        app: pyredis
+        app.component: pyredis
+      name: pyredis
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: pyredis
+        image: diegob/pyredis:1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8005
+          protocol: TCP
+        env: 
+          - name: REDIS_HOST
+            value: redis-demo.redis-demo.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pyredis
+  namespace: redis-demo
+  labels:
+    app: pyredis
+spec:      
+  ports:
+    - port: 8005
+      protocol: TCP
+      targetPort: 8005
+      name: pyredis
+  selector:
+    app.component: pyredis
+  type: ClusterIP
+

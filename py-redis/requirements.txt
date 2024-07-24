@@ -1,0 +1,4 @@
+fastapi
+uvicornv
+redis
+python-dotenv
