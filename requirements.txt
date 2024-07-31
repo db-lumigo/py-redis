@@ -2,3 +2,6 @@ fastapi
 uvicorn[standard]
 redis
 python-dotenv
+Flask==2.0.1
+boto3==1.18.0
+gunicorn==20.1.0
