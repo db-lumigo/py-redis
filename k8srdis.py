@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Body
 from redis import Redis
 import os
 from dotenv import load_dotenv
 import logging
 from logging.config import dictConfig
-from flask import Flask, request, jsonify
 import boto3
+from datetime import datetime
 
 # Logging configuration
 log_config = {
@@ -49,11 +49,15 @@ redis_client = Redis(
     decode_responses=True
 )
 
+# Initialize S3 client
+s3 = boto3.client('s3')
+BUCKET_NAME = os.environ.get('BUCKET_NAME')
+
 def query_run_subroutine():
     user_keys = redis_client.keys('*users*')
     location_keys = redis_client.keys('*location*')
     
-        # Print the keys
+    # Print the keys
     print("User Keys:")
     for key in user_keys:
         print(key)
@@ -101,6 +105,39 @@ async def query_run():
 @app.get("/badbubu")
 async def query_run():
     return query_bad_run_subrutine()
+
+@app.post("/write_to_s3")
+async def write_to_s3(data: dict = Body(default=None)):
+    if not BUCKET_NAME:
+        raise HTTPException(status_code=500, detail="BUCKET_NAME environment variable not set")
+
+    if data is None:
+        # Default case when no body is sent
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_name = f"default_{current_time}.txt"
+        file_content = f"This is a default file created at {current_time}"
+    else:
+        file_name = data.get('file_name')
+        file_content = data.get('file_content')
+
+        if not file_name:
+            current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_name = f"unnamed_{current_time}.txt"
+
+        if not file_content:
+            file_content = "This file was created with no content."
+
+    try:
+        s3.put_object(Bucket=BUCKET_NAME, Key=file_name, Body=file_content)
+        logger.info(f"File {file_name} written to S3 bucket {BUCKET_NAME}")
+        return {
+            "message": f"File {file_name} written to S3 bucket {BUCKET_NAME}",
+            "file_name": file_name,
+            "file_content": file_content
+        }
+    except Exception as e:
+        logger.error(f"Error writing to S3: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error writing to S3: {str(e)}")
 
 @app.get("/{path:path}")
 async def catch_all(path: str, request: Request):
